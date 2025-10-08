@@ -12,6 +12,8 @@ interface InputFormProps {
   setPartCuts: (parts: Record<StoryPart, number>) => void;
   onGenerate: () => void;
   isLoading: boolean;
+  apiKey: string;
+  setApiKey: (key: string) => void;
 }
 
 export const InputForm: React.FC<InputFormProps> = ({
@@ -23,10 +25,13 @@ export const InputForm: React.FC<InputFormProps> = ({
   setPartCuts,
   onGenerate,
   isLoading,
+  apiKey,
+  setApiKey,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sumOfParts, setSumOfParts] = useState(totalCuts);
   const [isSumMismatch, setIsSumMismatch] = useState(false);
+  const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
 
   useEffect(() => {
     // FIX: Explicitly type the accumulator and value in the reduce function to resolve TypeScript error.
@@ -119,8 +124,38 @@ export const InputForm: React.FC<InputFormProps> = ({
           </div>
         </div>
         
-        {/* Right Column: Cut Configuration */}
+        {/* Right Column: API Key & Cut Configuration */}
         <div className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="gemini-api-key" className="block text-sm font-medium text-gray-300 mb-2">
+                Gemini API 키
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="gemini-api-key"
+                  type={isApiKeyVisible ? 'text' : 'password'}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  autoComplete="off"
+                  placeholder="AI Studio에서 발급받은 키를 입력하세요"
+                  className="flex-1 p-3 bg-gray-900 border border-gray-700 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200 text-gray-200"
+                  disabled={isLoading}
+                  aria-label="Gemini API key"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsApiKeyVisible((prev) => !prev)}
+                  className="px-4 py-2 bg-gray-700 text-sm rounded-md text-gray-200 hover:bg-gray-600 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isLoading}
+                  aria-label={isApiKeyVisible ? 'API 키 숨기기' : 'API 키 보기'}
+                >
+                  {isApiKeyVisible ? '숨기기' : '보기'}
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-gray-400">
+                입력한 키는 브라우저 로컬 저장소에만 저장되며 다른 곳으로 전송되지 않습니다.
+              </p>
+            </div>
             <div>
               <label htmlFor="total-cut-count" className="block text-sm font-medium text-gray-300 mb-2">
                 총 컷 수
@@ -166,7 +201,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       <div className="mt-6">
         <button
           onClick={onGenerate}
-          disabled={isLoading || !inputText || isSumMismatch}
+          disabled={isLoading || !inputText || isSumMismatch || !apiKey}
           className="w-full text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:ring-4 focus:outline-none focus:ring-indigo-500/50 font-medium rounded-lg text-lg px-5 py-3 text-center transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:saturate-50"
           aria-label={isLoading ? "Analyzing scenes" : "Generate scene breakdown"}
         >

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Header } from './components/Header';
 import { InputForm } from './components/InputForm';
 import { ResultsTable } from './components/ResultsTable';
@@ -18,10 +18,39 @@ const App: React.FC = () => {
   const [results, setResults] = useState<Partial<Record<StoryPart, Cut[]>>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        return localStorage.getItem('novelSceneGeminiKey') ?? '';
+      }
+    } catch {
+      // Access to localStorage can fail in private modes; ignore and fallback to empty string.
+    }
+    return '';
+  });
+
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') {
+        return;
+      }
+      if (apiKey) {
+        localStorage.setItem('novelSceneGeminiKey', apiKey);
+      } else {
+        localStorage.removeItem('novelSceneGeminiKey');
+      }
+    } catch {
+      // Ignore storage errors (e.g., private browsing restrictions).
+    }
+  }, [apiKey]);
 
   const handleGenerate = async () => {
     if (!inputText.trim()) {
       setError('소설 텍스트를 입력해주세요.');
+      return;
+    }
+    if (!apiKey.trim()) {
+      setError('Gemini API 키를 입력해주세요.');
       return;
     }
     const sumOfParts = Object.values(partCuts).reduce((acc: number, count: number) => acc + count, 0);
@@ -35,11 +64,17 @@ const App: React.FC = () => {
     setResults({});
 
     try {
-      const analysisResults = await analyzeNovel(inputText, partCuts);
+      const analysisResults = await analyzeNovel(inputText, partCuts, apiKey.trim());
       setResults(analysisResults);
     } catch (err) {
       console.error(err);
-      setError('분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else if (typeof err === 'string') {
+        setError(err);
+      } else {
+        setError('분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -81,6 +116,8 @@ const App: React.FC = () => {
           setPartCuts={setPartCuts}
           onGenerate={handleGenerate}
           isLoading={isLoading}
+          apiKey={apiKey}
+          setApiKey={setApiKey}
         />
         
         {isLoading && (

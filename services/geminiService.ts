@@ -1,8 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Cut, StoryPart } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const partDescriptions: Record<StoryPart, string> = {
     '기': 'Introduction: Introduce characters, setting, and initial conflict.',
     '승': 'Development: Escalate the conflict and develop the plot.',
@@ -10,7 +8,48 @@ const partDescriptions: Record<StoryPart, string> = {
     '결': 'Conclusion: Resolve the conflict and conclude the story.'
 };
 
-export const analyzeNovel = async (text: string, partCuts: Record<StoryPart, number>): Promise<Record<StoryPart, Cut[]>> => {
+const parseJsonErrorMessage = (value: string): string | null => {
+  try {
+    const jsonStart = value.indexOf("{");
+    const jsonEnd = value.lastIndexOf("}");
+    if (jsonStart === -1 || jsonEnd === -1) return null;
+    const possibleJson = value.slice(jsonStart, jsonEnd + 1);
+    const parsed = JSON.parse(possibleJson);
+    if (parsed?.error?.message && typeof parsed.error.message === "string") {
+      return parsed.error.message;
+    }
+  } catch {
+    // Ignore JSON parsing failures; fallback message will be used.
+  }
+  return null;
+};
+
+const extractGeminiErrorMessage = (error: unknown): string | null => {
+  if (!error) return null;
+  if (typeof error === "string") {
+    return parseJsonErrorMessage(error) ?? error;
+  }
+  if (error instanceof Error) {
+    return parseJsonErrorMessage(error.message) ?? error.message;
+  }
+  if (typeof error === "object" && "message" in error && typeof (error as { message: unknown }).message === "string") {
+    const message = (error as { message: string }).message;
+    return parseJsonErrorMessage(message) ?? message;
+  }
+  return null;
+};
+
+export const analyzeNovel = async (
+  text: string,
+  partCuts: Record<StoryPart, number>,
+  apiKey: string,
+): Promise<Record<StoryPart, Cut[]>> => {
+  const trimmedKey = apiKey?.trim();
+  if (!trimmedKey) {
+    throw new Error("Gemini API 키를 입력해주세요.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: trimmedKey });
   const cutSchema = {
     type: Type.OBJECT,
     properties: {
@@ -104,6 +143,8 @@ export const analyzeNovel = async (text: string, partCuts: Record<StoryPart, num
 
   } catch (error) {
     console.error("Error calling Gemini API:", error);
-    throw new Error("Failed to analyze novel text with Gemini API.");
+    const parsedMessage = extractGeminiErrorMessage(error);
+    const fallbackMessage = "Gemini API 호출에 실패했습니다. API 키를 확인한 뒤 다시 시도해주세요.";
+    throw new Error(parsedMessage ?? fallbackMessage);
   }
 };
