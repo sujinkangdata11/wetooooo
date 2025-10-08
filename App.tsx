@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Header } from './components/Header';
-import { InputForm } from './components/InputForm';
+import { CharacterInput } from './components/CharacterInput';
+import { SceneConfig } from './components/SceneConfig';
 import { ResultsTable } from './components/ResultsTable';
 import { Loader } from './components/Loader';
+import { Sidebar, type SidebarTab } from './components/Sidebar';
+import { ApiKeyPanel } from './components/ApiKeyPanel';
 import { analyzeNovel } from './services/geminiService';
 import type { Cut, StoryPart } from './types';
 
@@ -18,6 +21,7 @@ const App: React.FC = () => {
   const [results, setResults] = useState<Partial<Record<StoryPart, Cut[]>>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<SidebarTab>('input');
   const [apiKey, setApiKey] = useState<string>(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -103,51 +107,101 @@ const App: React.FC = () => {
     });
   }
 
+  const renderActiveContent = () => {
+    switch (activeTab) {
+      case 'input':
+        return (
+          <section className="rounded-3xl bg-white/80 border border-[#f0e6d8] px-6 py-8 text-center">
+            <h2 className="text-xl font-semibold text-[#a0725b] mb-4">캐릭터 생성</h2>
+            <p className="text-sm text-[#7c6a5d] leading-relaxed">
+              캐릭터 분석 기능은 준비 중입니다. 먼저 씬 생성 메뉴에서 소설 텍스트를 입력하고 컷 구성을 진행해 주세요.
+            </p>
+          </section>
+        );
+      case 'scene':
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col lg:flex-row gap-6">
+              <section className="flex-1 rounded-3xl bg-white/80 border border-[#f0e6d8] backdrop-blur-sm">
+                <CharacterInput inputText={inputText} setInputText={setInputText} isLoading={isLoading} />
+              </section>
+              <section className="flex-1 rounded-3xl bg-white/80 border border-[#f0e6d8] backdrop-blur-sm">
+                <SceneConfig
+                  totalCuts={totalCuts}
+                  setTotalCuts={setTotalCuts}
+                  partCuts={partCuts}
+                  setPartCuts={setPartCuts}
+                  onGenerate={handleGenerate}
+                  isLoading={isLoading}
+                  hasApiKey={Boolean(apiKey.trim())}
+                  hasInputText={Boolean(inputText.trim())}
+                />
+              </section>
+            </div>
+            {isLoading && (
+              <section className="rounded-3xl bg-white/60 border border-[#f0e6d8] px-8 py-12 text-center">
+                <div className="flex flex-col items-center justify-center gap-4">
+                  <Loader />
+                  <p className="text-base text-[#a0725b]">
+                    AI가 소설 전체를 분석하고 있습니다... 잠시만 기다려주세요.
+                  </p>
+                </div>
+              </section>
+            )}
+            {error && (
+              <section className="rounded-2xl border border-[#f6d7d3] bg-[#fef1ef] px-6 py-4 text-[#a65646]">
+                <p className="font-semibold">오류가 발생했어요</p>
+                <p className="text-sm mt-1">{error}</p>
+              </section>
+            )}
+            {!isLoading && !error && Object.keys(results).length > 0 && (
+              <section className="rounded-3xl bg-white/80 border border-[#f0e6d8] px-6 py-8 space-y-10">
+                {renderResults()}
+                <div className="rounded-2xl border border-[#dbe6cf] bg-[#f5f9ed] px-6 py-5 text-[#5b7b4c] text-center">
+                  <p className="font-semibold">분석 완료!</p>
+                  <p className="text-sm mt-1">소설의 모든 부분이 성공적으로 분석되었습니다.</p>
+                </div>
+              </section>
+            )}
+          </div>
+        );
+      case 'results':
+        return (
+          <section className="rounded-3xl bg-white/80 border border-[#f0e6d8] px-6 py-8 text-center">
+            <h2 className="text-xl font-semibold text-[#a0725b] mb-4">웹툰 생성</h2>
+            <p className="text-sm text-[#7c6a5d] leading-relaxed">
+              웹툰 전용 생성 기능은 준비 중입니다. 씬 생성 결과는 ‘씬 생성’ 메뉴에서 확인할 수 있어요.
+            </p>
+          </section>
+        );
+      case 'api':
+        return (
+          <section className="rounded-3xl bg-white/60 border border-[#f0e6d8] px-6 py-6">
+            <h2 className="text-xl font-semibold text-[#a0725b] mb-4">API 입력</h2>
+            <ApiKeyPanel apiKey={apiKey} setApiKey={setApiKey} isLoading={isLoading} />
+            <ul className="mt-4 space-y-2 text-sm text-[#7c6a5d] leading-relaxed">
+              <li>• Gemini API 키는 브라우저 로컬 저장소에만 저장되며, 언제든지 비워 재설정할 수 있습니다.</li>
+              <li>• 키를 변경하면 새로 입력한 값으로 즉시 요청을 보냅니다.</li>
+              <li>• 키를 발급받았다면 입력란에 붙여넣고 저장하세요.</li>
+            </ul>
+          </section>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-200 font-sans">
-      <Header />
-      <main className="container mx-auto px-4 py-8">
-        <InputForm
-          inputText={inputText}
-          setInputText={setInputText}
-          totalCuts={totalCuts}
-          setTotalCuts={setTotalCuts}
-          partCuts={partCuts}
-          setPartCuts={setPartCuts}
-          onGenerate={handleGenerate}
-          isLoading={isLoading}
-          apiKey={apiKey}
-          setApiKey={setApiKey}
-        />
-        
-        {isLoading && (
-          <div className="mt-8 flex flex-col items-center justify-center">
-            <Loader />
-            <p className="mt-4 text-lg text-indigo-400">AI가 소설 전체를 분석하고 있습니다... 잠시만 기다려주세요.</p>
-          </div>
-        )}
-
-        {Object.keys(results).length > 0 && !isLoading && (
-          <div className="mt-4">
-            {renderResults()}
-          </div>
-        )}
-        
-        {error && (
-          <div className="mt-8 p-4 bg-red-900/50 border border-red-700 text-red-300 rounded-lg">
-            <p className="font-bold">오류</p>
-            <p>{error}</p>
-          </div>
-        )}
-
-        {Object.keys(results).length > 0 && !isLoading && !error && (
-           <div className="mt-8 text-center p-4 bg-green-900/50 border border-green-700 text-green-300 rounded-lg">
-              <p className="font-bold">분석 완료!</p>
-              <p>소설의 모든 부분이 성공적으로 분석되었습니다.</p>
-          </div>
-        )}
-
-      </main>
+    <div className="min-h-screen bg-[#f8f3e8] text-[#4a4036] font-sans">
+      <div className="flex flex-col lg:flex-row min-h-screen">
+        <Sidebar activeTab={activeTab} onSelect={setActiveTab} />
+        <div className="flex-1 flex flex-col">
+          <Header />
+          <main className="w-full max-w-6xl mx-auto px-4 pb-16 space-y-10">
+            {renderActiveContent()}
+          </main>
+        </div>
+      </div>
     </div>
   );
 };
