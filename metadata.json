@@ -1,0 +1,5 @@
+{
+  "name": "Novel Scene Splitter",
+  "description": "An application that takes novel text as input, splits it into a specified number of scenes, and analyzes each scene's location, characters, dialogue, and situation.",
+  "requestFramePermissions": []
+}
